@@ -28,6 +28,21 @@ resource "aws_s3_bucket_public_access_block" "assets_block" {
   restrict_public_buckets = true
 }
 
+# ML Data Storage
+resource "aws_s3_bucket" "ml_data" {
+  bucket = "${var.project_name}-ml-data-${data.aws_caller_identity.current.account_id}"
+}
+
+resource "aws_s3_bucket_public_access_block" "ml_data_block" {
+  bucket = aws_s3_bucket.ml_data.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# Outputs
 output "bucket_name" {
   value = aws_s3_bucket.assets.id
 }
