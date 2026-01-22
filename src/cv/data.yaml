@@ -1,0 +1,14 @@
+# path
+path: "/Users/nao/Projects/repos/sono/connected-shelf/src/cv/data/processed/dataset_split"
+train: "images/train"
+val: "images/val"
+
+# number of classes
+nc: 6
+names:
+  0: linger
+  1: first_image
+  2: blyertspenna
+  3: lone
+  4: clinical_nugetts
+  5: revue_diapo_002

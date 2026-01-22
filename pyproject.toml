@@ -9,7 +9,10 @@ readme = "README.md"
 requires-python = "~3.11"
 dependencies = [
     "pydantic (>=2.12.5,<3.0.0)",
-    "python-dotenv (>=1.2.1,<2.0.0)"
+    "python-dotenv (>=1.2.1,<2.0.0)",
+    "opencv-python (>=4.13.0.90,<5.0.0.0)",
+    "ultralytics (>=8.4.7,<9.0.0)",
+    "blobconverter (>=1.4.3,<2.0.0)",
 ]
 
 [build-system]
@@ -20,10 +23,9 @@ build-backend = "poetry.core.masonry.api"
 package-mode = false
 
 [tool.poetry.group.edge.dependencies]
-depthai = "^3.3.0"
-opencv-python = "^4.13.0.90"
-opencv-contrib-python = "^4.13.0.90"
 awsiotsdk = "^1.28.0"
+depthai = "2.31.0.0"
+opencv-contrib-python = "^4.13.0.90"
 
 [tool.poetry.group.backend.dependencies]
 boto3 = "^1.42.31"

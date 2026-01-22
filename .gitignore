@@ -222,3 +222,11 @@ certs/
 *.crt
 *.key
 *.csr
+
+# Machine Learning Data
+src/cv/data/
+src/cv/runs/
+
+# Models
+*.pt
+*.onnx
