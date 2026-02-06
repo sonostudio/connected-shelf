@@ -206,27 +206,14 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Terraform
-**/.terraform/*
-*.tfstate
-*.tfstate.*
-*.tfvars
-*.tfvars.json
-*.tfplan
-crash.log
-crash.*.log
-
-# AWS IoT & Secrets
-certs/
-*.pem
-*.crt
-*.key
-*.csr
-
 # Machine Learning Data
 src/cv/data/
 src/cv/runs/
+connected-shelf-object-detection-*/
 
 # Models
 *.pt
 *.onnx
+
+# Assets
+videos/

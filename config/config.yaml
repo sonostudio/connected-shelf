@@ -1,0 +1,30 @@
+detection:
+  confidence_threshold: 0.80
+  model_path: "model/model.blob"
+  labels_path: "model/labels.txt"
+  camera_fps: 30
+
+display:
+  resolution: [1920, 1080] # [width, height]
+  fullscreen: true
+  fps: 30
+
+transitions:
+  fade_duration: 0.5
+  return_to_default_delay: 0.0
+
+content:
+  default: "videos/default.mp4"
+  skus:
+    product_a: "videos/product_a.mp4"
+    product_b: "videos/product_b.mp4"
+    product_c: "videos/product_c.mp4"
+
+video:
+  loop: true
+  preload: true # Preload all videos at startup (faster switching)
+
+logging:
+  level: "INFO"
+  save_to_file: false
+  log_file: "logs/detections.log"
