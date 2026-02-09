@@ -1,11 +1,4 @@
-"""
-Train Object Detection Model Locally
-This script downloads your dataset from Roboflow and trains a model locally
-No paid plan required!
-"""
-
 import os
-from pathlib import Path
 
 print("="*60)
 print("Local Model Training for OAK-D Pro")
@@ -21,7 +14,7 @@ print()
 API_KEY = "wBdl9uQ6INwB93C7nlKn"
 WORKSPACE = "sono-studio"
 PROJECT = "connected-shelf-object-detection"
-VERSION = 4
+VERSION = 2
 
 def download_dataset():
     """
@@ -157,7 +150,7 @@ def train_model(dataset_path):
     print("\n✓ Training complete!")
     
     # Get best model path
-    best_model = "runs/train/oakd_detection/weights/best.pt"
+    best_model = "runs/detect/runs/train/oakd_detection/weights/best.pt"
     
     if os.path.exists(best_model):
         print(f"Best model: {best_model}")

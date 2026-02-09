@@ -16,9 +16,8 @@ transitions:
 content:
   default: "videos/default.mp4"
   skus:
-    product_a: "videos/product_a.mp4"
-    product_b: "videos/product_b.mp4"
-    product_c: "videos/product_c.mp4"
+    nike_black: "videos/nike_black.mov"
+    nb_gray: "videos/nb_gray.mp4"
 
 video:
   loop: true

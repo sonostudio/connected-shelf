@@ -302,7 +302,7 @@ Exports your model to ONNX format.
 from ultralytics import YOLO
 
 # Load your trained model
-model = YOLO('runs/train/oakd_detection/weights/best.pt')
+model = YOLO('runs/detect/runs/train/oakd_detection/weights/best.pt')
 
 # Export to ONNX
 onnx_path = model.export(
@@ -470,8 +470,8 @@ python detect_yolo_oakd.py
 # Custom confidence threshold
 python detect_yolo_oakd.py --conf 0.4
 
-# Disable depth display
-python detect_yolo_oakd.py --no-depth
+# Enable depth display
+python detect_yolo_oakd.py --depth
 
 # Save video recording
 python detect_yolo_oakd.py --save-video --output detections.mp4

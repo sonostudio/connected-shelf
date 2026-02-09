@@ -287,7 +287,7 @@ def main():
     Path('logs').mkdir(exist_ok=True)
     
     try:
-        system = SKUDetectionSystem('config.yaml')
+        system = SKUDetectionSystem('../config/config.yaml')
         system.run()
         
     except KeyboardInterrupt:
