@@ -1,6 +1,6 @@
 detection:
   confidence_threshold: 0.80
-  model_path: "model/model.blob"
+  model_path: "model/model_shoes.blob"
   labels_path: "model/labels.txt"
   camera_fps: 30
 
@@ -14,10 +14,10 @@ transitions:
   return_to_default_delay: 0.0
 
 content:
-  default: "videos/default.mp4"
+  default: "../videos/default.mp4"
   skus:
-    nike_black: "videos/nike_black.mov"
-    nb_gray: "videos/nb_gray.mp4"
+    nike_black: "../videos/nike_black.mov"
+    nb_gray: "../videos/nb_gray.mp4"
 
 video:
   loop: true
@@ -25,5 +25,3 @@ video:
 
 logging:
   level: "INFO"
-  save_to_file: false
-  log_file: "logs/detections.log"

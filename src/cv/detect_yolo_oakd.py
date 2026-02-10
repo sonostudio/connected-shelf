@@ -10,11 +10,11 @@ import argparse
 # ============================================================================
 
 # Model files
-MODEL_BLOB_PATH = "model/best_openvino_2022.1_6shave.blob"
+MODEL_BLOB_PATH = "model/model_shoes.blob"
 LABELS_PATH = "model/labels.txt"
 
 # Detection parameters
-CONFIDENCE_THRESHOLD = 0.5
+CONFIDENCE_THRESHOLD = 0.9
 IOU_THRESHOLD = 0.5
 
 # Camera settings

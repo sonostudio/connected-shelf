@@ -11,9 +11,9 @@ print("3. Convert to OAK-D Pro format")
 print()
 
 # Configuration
-API_KEY = "wBdl9uQ6INwB93C7nlKn"
-WORKSPACE = "sono-studio"
-PROJECT = "connected-shelf-object-detection"
+API_KEY = ""
+WORKSPACE = ""
+PROJECT = ""
 VERSION = 2
 
 def download_dataset():

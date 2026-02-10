@@ -215,6 +215,7 @@ connected-shelf-object-detection-*/
 # Models
 *.pt
 *.onnx
+*.blob
 
 # Assets
 videos/
