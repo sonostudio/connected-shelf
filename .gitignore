@@ -209,7 +209,6 @@ __marimo__/
 # Machine Learning Data
 src/cv/data/
 src/cv/runs/
-dataset/
 connected-shelf-object-detection-*/
 
 # Models
@@ -217,5 +216,6 @@ connected-shelf-object-detection-*/
 *.onnx
 *.blob
 
-# Assets
-videos/
+# Videos
+*.mp4
+*.mov
