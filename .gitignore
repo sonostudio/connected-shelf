@@ -219,3 +219,6 @@ connected-shelf-object-detection-*/
 # Videos
 *.mp4
 *.mov
+
+# Mac OS
+.DS_Store
