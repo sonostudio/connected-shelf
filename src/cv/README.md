@@ -1,4 +1,4 @@
-# Complete Guide: Object Detection with Roboflow & OAK-D Pro
+# Object Detection with Roboflow & OAK-D Pro
 
 ## End-to-End Pipeline from Dataset to Deployment
 
@@ -109,7 +109,7 @@ Roboflow's annotation tool is intuitive - simply draw bounding boxes around obje
 1. **Click "Generate"** (after annotation)
 2. **Configure Preprocessing**:
    - **Auto-Orient**: ✓ Recommended
-   - **Resize**: 640x640 (standard for YOLO)
+   - **Resize**: 320x320 (matches model input size)
    - **Grayscale**: ✗ (unless needed)
 
 3. **Configure Augmentation**:
@@ -189,7 +189,7 @@ The script will:
 
 **Dataset Structure:**
 ```
-dataset/
+src/cv/data/project-name-version/  # From Roboflow (rename to match your download)
 ├── data.yaml          # Dataset configuration
 ├── train/
 │   ├── images/        # Training images
@@ -217,14 +217,30 @@ dataset/
 **Recommendation for OAK-D Pro**: YOLOv8n or YOLOv8s
 
 ### Step 2.4: Train the Model
+
+Run training via the YOLO CLI:
+
+```bash
+yolo detect train \
+  data=src/cv/data/project-name-version/data.yaml \
+  model=yolov8n.pt \
+  epochs=50 \
+  imgsz=320 \
+  device=mps \
+  batch=16 \
+  project=src/cv/runs \
+  name=detect \
+  exist_ok=True
+```
+
 **Training Parameters Explained:**
 
-- `epochs=100`: How many times to iterate through dataset
+- `epochs=50`: How many times to iterate through dataset
   - More epochs = better learning (but can overfit)
-  - Start with 100, increase if needed
+  - Start with 50, increase if needed
   
-- `imgsz=640`: Input image size
-  - 640x640 is standard
+- `imgsz=320`: Input image size
+  - 320x320 matches the OAK-D capture size in this project
   - Larger = more accurate but slower
   
 - `batch=16`: Images per training step
@@ -234,16 +250,16 @@ dataset/
 - `patience=50`: Stop if no improvement for N epochs
   - Prevents overfitting and saves time
   
-- `device='0'`: Hardware to use
-  - `'0'` = First GPU (NVIDIA)
-  - `'cpu'` = CPU only (slower)
-  - `'mps'` = Mac M1/M2/M3 acceleration
+- `device`: Hardware to use
+  - `mps` = Mac Apple Silicon (M1/M2/M3) acceleration
+  - `0` = First GPU (NVIDIA)
+  - `cpu` = CPU only (slower)
 
 **Monitor Training:**
 
 Training creates real-time plots in:
 ```
-runs/train/oakd_detection/
+src/cv/runs/detect/
 ├── weights/
 │   ├── best.pt              # Best model checkpoint
 │   ├── last.pt              # Latest checkpoint
@@ -283,7 +299,7 @@ Open `results.png` to see:
 - Recall > 0.85 (85%+)
 
 **If results are poor:**
-- Train for more epochs (200-300)
+- Train for more epochs (100-200)
 - Use larger model (yolov8s or yolov8m)
 - Improve dataset (more images, better annotations)
 - Adjust augmentation settings
@@ -292,59 +308,24 @@ Open `results.png` to see:
 
 ## Phase 3: Model Conversion for OAK-D Pro
 
-**Note:** If you used `train_local.py` for training, it should have already completed these conversion steps automatically. This section explains what happens during conversion and is useful for troubleshooting or manual conversion if needed.
+The trained PyTorch model (`.pt`) needs to be converted to `.blob` format before it can run on the OAK-D Pro. This is done using the Luxonis online converter, which handles the full conversion internally.
 
-### Step 3.1: Export to ONNX
+### Step 3.1: Convert to Blob (Online Converter)
 
-Exports your model to ONNX format.
+Blob conversion is done using the **Luxonis online converter** at:
 
-```python
-from ultralytics import YOLO
+👉 **https://tools.luxonis.com**
 
-# Load your trained model
-model = YOLO('runs/detect/runs/train/oakd_detection/weights/best.pt')
+**Steps:**
 
-# Export to ONNX
-onnx_path = model.export(
-    format='onnx',
-    imgsz=640,
-    simplify=True
-)
-
-print(f"ONNX model saved: {onnx_path}")
-```
-
-**Output location:**
-```
-runs/train/oakd_detection/weights/best.onnx
-```
-
-### Step 3.2: Convert ONNX to Blob
-
-Converts ONNX to blob format for OAK-D Pro.
-
-```python
-import blobconverter
-import shutil
-import os
-
-# Convert ONNX to blob
-print("Converting to blob format...")
-blob_path = blobconverter.from_onnx(
-    model="runs/train/oakd_detection/weights/best.onnx",
-    data_type="FP16",      # Half precision
-    shaves=6,              # Number of SHAVE cores
-    use_cache=True         # Cache for faster re-conversion
-)
-
-print(f"Blob created: {blob_path}")
-
-# Copy to model directory
-os.makedirs("model", exist_ok=True)
-shutil.copy(blob_path, "model/model.blob")
-
-print("✓ Model ready at: model/model.blob")
-```
+1. Go to https://tools.luxonis.com
+2. Upload your `best.pt` file from `src/cv/runs/detect/weights/`
+3. Configure conversion settings:
+   - **Data Type**: FP16
+   - **Shaves**: 6
+4. Click **Convert**
+5. Download the resulting `.blob` file
+6. Place it at `src/cv/models/model.blob`
 
 **Conversion Settings Explained:**
 
@@ -356,37 +337,29 @@ print("✓ Model ready at: model/model.blob")
 - **Shaves**: 
   - More shaves = faster inference
   - OAK-D Pro has 16 shaves
-  - Use 6 for good balance
+  - Use 6 for a good balance
   - Can try 8-12 for more speed
 
-### Step 3.3: Create Labels File
+### Step 3.2: Create Labels File
 
-Creates a labels file from your dataset.
+Use the provided utility script at `src/cv/utils/create_labels.py`.
+
+Before running, update the dataset path in the script to match your Roboflow download:
 
 ```python
-# This is done automatically by train_local.py
-import yaml
-import os
-
-# Read class names from data.yaml
-with open('dataset/data.yaml', 'r') as f:
-    data = yaml.safe_load(f)
-
-class_names = data['names']
-
-# Create labels file
-os.makedirs("model", exist_ok=True)
-with open('model/labels.txt', 'w') as f:
-    for name in class_names:
-        f.write(f"{name}\n")
-
-print(f"✓ Labels saved: model/labels.txt")
-print(f"Classes: {', '.join(class_names)}")
+# create_labels.py
+with open('src/cv/data/project-name-version/data.yaml', 'r') as f:
 ```
 
-**After `train.py` completes**, you should have:
+Then run it:
+
+```bash
+python src/cv/utils/create_labels.py
 ```
-model/
+
+**After conversion completes**, you should have:
+```
+src/cv/models/
 ├── model.blob          # For OAK-D Pro inference
 └── labels.txt          # Class names
 ```
@@ -439,8 +412,8 @@ Edit `detect_yolo_oakd.py`:
 
 ```python
 # Update these paths
-MODEL_BLOB_PATH = "model/model.blob"
-LABELS_PATH = "model/labels.txt"
+MODEL_BLOB_PATH = "src/cv/models/model.blob"
+LABELS_PATH = "src/cv/models/labels.txt"
 
 # Adjust detection parameters
 CONFIDENCE_THRESHOLD = 0.5  # Lower = more detections
@@ -448,8 +421,8 @@ IOU_THRESHOLD = 0.5         # Overlap threshold
 
 # Camera settings
 CAMERA_FPS = 30
-PREVIEW_WIDTH = 640
-PREVIEW_HEIGHT = 640
+PREVIEW_WIDTH = 320
+PREVIEW_HEIGHT = 320
 
 # Display options
 SHOW_FPS = True
@@ -541,9 +514,9 @@ Missing detections?
 ### Training Issues
 
 **Problem: "CUDA out of memory"**
-```python
+```bash
 # Reduce batch size
-model.train(..., batch=8)  # or 4, or 1
+yolo detect train ... batch=8  # or 4, or 1
 ```
 
 **Problem: "Overfitting"**
@@ -561,14 +534,13 @@ model.train(..., batch=8)  # or 4, or 1
 ### Conversion Issues
 
 **Problem: "Blob conversion failed"**
-- Use online converter: https://blobconverter.luxonis.com/
-- Check ONNX file exists
-- Try different OpenVINO version
-- Reinstall blobconverter: `pip install --upgrade blobconverter`
+- Use the online converter: https://tools.luxonis.com
+- Check that `best.pt` exists in `src/cv/runs/detect/weights/`
+- Try a different number of shaves
 
 **Problem: "Model too large for OAK"**
 - Use smaller model (yolov8n)
-- Reduce input size: `imgsz=416`
+- Reduce input size: `imgsz=320` (already the default in this project)
 - Use FP16 instead of FP32
 
 ---
@@ -576,27 +548,30 @@ model.train(..., batch=8)  # or 4, or 1
 ## File Organization
 
 ```
-your-project/
-├── dataset/                          # From Roboflow
-│   ├── data.yaml
-│   ├── train/
-│   ├── valid/
-│   └── test/
+connected-shelf/
+├── src/
+│   └── cv/
+│       ├── data/
+│       │   └── project-name-version/          # From Roboflow
+│       │       ├── data.yaml
+│       │           ├── train/
+│       │           ├── valid/
+│       │           └── test/
+│       ├── runs/
+│       │   └── detect/                # Training outputs
+│       │       ├── weights/
+│       │       │   ├── best.pt        # PyTorch model
+│       │       │   └── last.pt        # Last checkpoint
+│       │       ├── results.png        # Training curves
+│       │       └── confusion_matrix.png
+│       └── models/                    # Deployment files
+│           ├── model.blob             # For OAK-D Pro
+│           └── labels.txt            # Class names
 │
-├── runs/train/oakd_detection/       # Training outputs
-│   ├── weights/
-│   │   ├── best.pt                  # PyTorch model
-│   │   ├── best.onnx                # ONNX export
-│   │   └── last.pt                  # Last checkpoint
-│   ├── results.png                  # Training curves
-│   └── confusion_matrix.png
-│
-├── model/                           # Deployment files
-│   ├── model.blob                   # For OAK-D Pro
-│   └── labels.txt                   # Class names
-│
-├── train_local.py                   # Training script
-├── detect_yolo_oakd.py              # Detection script
-├── test_oakd_setup.py               # Hardware test
-└── requirements.txt                 # Dependencies
+├── videos/                            # Raw capture videos
+├── config/                            # Configuration files
+├── pyproject.toml                     # Poetry dependencies
+├── train.py                           # Training script
+├── detect_yolo_oakd.py                # Detection script
+└── test_oakd_setup.py                 # Hardware test
 ```
