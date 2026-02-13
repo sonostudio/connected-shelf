@@ -24,7 +24,7 @@ class SKUDetectionSystem:
     Main system for SKU detection and content display
     """
     
-    def __init__(self, config_path='../config/config.yaml'):
+    def __init__(self, config_path='config/config.yaml'):
         logger.info("Initializing SKU Detection System...")
         
         self.config = self.load_config(config_path)
@@ -286,7 +286,7 @@ def main():
     Path('logs').mkdir(exist_ok=True)
     
     try:
-        system = SKUDetectionSystem('../config/config.yaml')
+        system = SKUDetectionSystem('config/config.yaml')
         system.run()
         
     except KeyboardInterrupt:

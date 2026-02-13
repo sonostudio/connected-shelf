@@ -84,12 +84,13 @@ You should see your device listed. If not, try a different USB port or reboot.
 ```
 connected-shelf/
 ├── config/
-│   └── config.yaml          # Configuration
+│   └── config.yaml            # Configuration
 ├── src/
 │   ├── detect_and_display.py  # Main application
 │   ├── video_player.py        # Video playback module
 │   └── cv/                    # Model training scripts
-├── videos/                  # Your product videos (user-supplied)
+├── model/                     # blob file and labels
+├── videos/                    # Your product videos (user-supplied)
 └── pyproject.toml
 ```
 
@@ -113,8 +114,8 @@ Other key settings:
 
 ```yaml
 detection:
-  model_path: "src/cv/models/model.blob"
-  labels_path: "src/cv/models/labels.txt"
+  model_path: "models/model.blob"
+  labels_path: "models/labels.txt"
   confidence_threshold: 0.80   # Lower (e.g. 0.5) if detections are missed
   camera_fps: 30
 
