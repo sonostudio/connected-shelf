@@ -1,194 +1,191 @@
-## Interactive Retail Shelf
+## connected-shelf: Vision-Triggered Retail Display System
 
-**Retail Technology Pilot**
+### Project Overview
 
-An interactive retail display system that detects physical products in real time and dynamically plays mapped video content to create responsive, context-aware in-store media experiences.
+connected-shelf is a real-time product detection system for retail environments. It uses an OAK-D Pro depth camera and a custom-trained YOLOv8 model to identify products placed in front of a display, then seamlessly fades to the corresponding product video — creating an interactive shelf that responds to physical product handling without any buttons, RFID tags, or embedded hardware.
 
-Designed as a modular retail media infrastructure layer, the system bridges computer vision, edge deployment, and dynamic content logic — enabling seamless physical-digital interaction without RFID or embedded hardware.
-
----
-
-## Goal & Intent
-
-This project began as an exploration into cost-effective, computer-vision-driven retail media.
-
-**Core question:**
-How can digital narratives be introduced into physical retail environments in a way that is interactive, context-aware, and frictionless?
-
-Unlike touchscreens or QR systems, customers do not need to scan, navigate, or search. Interaction occurs naturally through product handling.
-
-By eliminating interface friction, the display becomes responsive rather than navigational.
-
-The system enables SKU-level personalization and can expand to include:
-
-* Product descriptions
-* Styling recommendations
-* Inventory information
-* Promotional logic
-* Interaction analytics
-
-This shifts retail media from scheduled broadcasting to real-time, product-driven engagement.
+* **Project type:** Retail technology prototype / interactive system
+* **Intended audience:** Retail brands, trade show operators, product showroom designers
 
 ---
 
-## Process
+### Goal & Intent
 
-### Concept & System Design
+The project was initiated to explore whether computer vision could make retail digital displays genuinely interactive — responding to what a customer picks up or places in front of a screen, rather than running on a predetermined schedule.
 
-Development began with object detection prototyping to validate SKU-level recognition feasibility.
+A central question guiding the work was how to build a system that is:
 
-A custom-trained object detection model was selected to allow visual recognition without modifying physical products. Environmental testing included lighting variation, camera positioning, and background robustness to ensure stable real-time detection.
+* **Frictionless** — no scanning, tapping, or explicit customer action required
+* **Reliable in real conditions** — stable under varied lighting, backgrounds, and camera angles
+* **Deployable on affordable edge hardware** — no cloud dependency, no recurring inference costs
+* **Configurable without engineering** — new SKUs and videos mapped through a YAML file
 
----
-
-### Detection Pipeline Development
-
-A custom YOLO model was trained in-house using Ultralytics and optimized for deployment on Luxonis OAK-D Pro hardware.
-
-Pilot configuration:
-
-* 5 SKUs
-* On-device inference via DepthAI
-* Class labels passed to playback system
-
-Inference runs fully locally, ensuring low latency and deployment reliability.
-
-Future expansion can incorporate bounding box coordinates to enable spatial overlays or generative media systems.
+The object, in this framing, becomes the interface. Placing a product in front of the screen is the interaction.
 
 ---
 
-### Video Mapping & Playback Logic
+### Process
 
-Each SKU is mapped to video content via a configuration file.
+#### Concept & Feasibility Testing
 
-Prototype behavior:
+Development began with object detection prototyping to validate whether SKU-level recognition was feasible for the target product category. Initial testing focused on detection stability, confidence levels under different lighting conditions, and camera positioning — prioritising reliability over model sophistication.
 
-* Single-object interaction model
-* 0.5-second fallback to default
-* Multithreaded detection and playback
-* Planned debounce and object-lock logic for production
+#### Dataset Preparation
 
-The system prioritizes stability and clarity over rapid switching.
+Training data was captured on-site using the OAK-D Pro's RGB stream, recorded with a custom Python capture script. Videos were uploaded to Roboflow for frame extraction and annotation — drawing bounding boxes around each product and assigning SKU labels. Dataset augmentations (rotation, brightness, blur) were applied in Roboflow to improve generalisation to real-world variation.
 
----
+#### Model Training
 
-### Hardware Integration
+A YOLOv8n (nano) model was trained using Ultralytics on the custom dataset. The nano variant was chosen deliberately — it is fast enough for 30 FPS inference on Raspberry Pi 5 and small enough to convert to the MyriadX VPU's `.blob` format within the OAK-D Pro. Training used `imgsz=320` to match the on-device inference resolution.
 
-* Raspberry Pi 5 (application & playback)
-* Luxonis OAK-D Pro (on-device AI inference)
-* HDMI display (horizontal placement)
+#### Model Conversion & Deployment
 
-All processing is edge-based. No cloud dependency is required.
+The trained PyTorch model was exported to ONNX and then converted to a `.blob` file using the Luxonis online converter (tools.luxonis.com), targeting the OAK-D Pro's MyriadX VPU for on-device inference. This eliminates latency from sending frames to the host and keeps the Raspberry Pi free for video playback.
 
----
+#### Video Playback System
 
-## Output
+A custom `VideoPlayer` class handles looping video playback with smooth fade transitions between SKU-specific content and a default idle video. Transitions use cosine interpolation for an ease-in-out feel. Videos are preloaded at startup for instant switching, and the player is designed to run concurrently with the detection loop via threading.
 
-When idle, the display plays branded default content with subtle placement guidance.
+#### System Integration
 
-When a product is placed on the monitor surface, the system detects the SKU in real time and smoothly fades into product-specific video.
-
-The interaction feels playful yet informative — the product itself appears to activate the media.
-
-When removed, the system fades back to default within 0.5 seconds.
-
-No buttons. No scanning. No navigation.
-The object becomes the interface.
+The main application loop runs detection and video playback in separate threads — detection results trigger `switch_video()` calls on the player, which initiates a fade transition. A configurable return-to-default delay handles the case where a product is removed.
 
 ---
 
-## Challenges & Learnings
+### Challenges & Learnings
 
-Achieving stable model accuracy (>90% confidence) required careful dataset preparation, augmentation, and preprocessing.
+#### Achieving stable confidence above 90%
 
-Integrating custom YOLO models into the DepthAI framework required multiple iterations to produce compatible blob files.
+Early model versions produced frequent false positives and missed detections. Iterating on dataset quality — more varied capture angles, better lighting coverage, and stricter annotation — proved more impactful than changing model architecture. The key insight was that production-ready detection accuracy comes from data quality, not algorithm novelty.
 
-A key insight from this project:
+#### Blob conversion compatibility
 
-Production-ready systems require balance.
-Rather than using the latest computationally heavy models, we optimized for hardware compatibility and real-world reliability.
+Converting YOLOv8 ONNX models to DepthAI `.blob` format required specific ONNX opset and export settings to produce a compatible file. Using the Luxonis online converter with explicitly set parameters (FP16, 6 shaves, OpenVINO 2022.1) resolved compatibility issues that arose from local conversion attempts.
 
-Stability, efficiency, and deployment realism outweigh algorithm novelty in retail environments.
+#### Concurrent detection and playback
+
+Running detection and video playback in the same process required careful thread management to avoid frame drops in the video output. The detection loop runs as a daemon thread, with a shared lock protecting the state variable that controls which video is playing. This keeps the main thread focused on display performance.
+
+#### Choosing the right model size for the hardware
+
+Larger YOLOv8 variants (s, m) produced slightly better accuracy but were too slow for the MyriadX VPU at 30 FPS. The nano variant, combined with `imgsz=320`, gave a good balance of speed and accuracy for a small, controlled product catalogue.
 
 ---
 
-## Architecture Overview
+### Output
+
+#### Final system
+
+* Raspberry Pi 5 application with DepthAI-based YOLOv8 inference pipeline
+* Custom `VideoPlayer` with smooth fade transitions (cosine ease-in-out)
+* YAML-based SKU-to-video configuration — no code changes needed to add new products
+* End-to-end model training pipeline: capture → Roboflow annotation → YOLOv8 training → blob conversion → deployment
+* On-site operator tools: camera test script, setup verification, video player test suite
+
+#### User / customer experience
+
+For a customer, the interaction is wordless and immediate. Picking up or placing a product in front of the display causes the screen to smoothly transition from ambient content to a video specific to that product. Removing the product fades it back. There is no visible interface — the product itself activates the media.
+
+#### Media
+
+* Video documentation: *to be added*
+
+---
+
+### Technical / Architecture Description
+
+#### System overview
+
+An OAK-D Pro camera runs YOLOv8n inference on-device via its MyriadX VPU. Detected SKU labels are passed to the host application on Raspberry Pi 5, which maps them to video files via a config file and triggers fade transitions in the video player.
+
+#### Data flow
+
+1. OAK-D Pro captures RGB frame at 30 FPS
+2. MyriadX VPU runs YOLOv8n inference on-device
+3. Detection results (label, confidence, bounding box) sent to Raspberry Pi 5 via USB
+4. Host application filters by confidence threshold, extracts highest-confidence SKU label
+5. SKU label looked up in YAML config to find video path
+6. If SKU changes, `VideoPlayer.switch_video()` initiates fade transition
+7. Video player blends current and next frame using cosine interpolation
+8. Display output rendered to HDMI monitor
 
 ```
-┌──────────────────────────────────────┐
-│           PRODUCT PLACEMENT          │
-│                                      │
-│  Physical Item on Monitor Surface    │
-│                                      │
-└─────────────────────┬────────────────┘
-                      │
-                      ▼
-┌──────────────────────────────────────┐
-│           OAK-D Pro Camera           │
-│      (RGB Capture + On-Device ML)    │
-└─────────────────────┬────────────────┘
-                      │  USB
-                      ▼
-┌────────────────────────────────────────────────┐
-│          Raspberry Pi 5 (Edge Node)            │
-│                                                │
-│  [Python Application]                          │
-│  • Object detection (custom YOLO model)        │
-│  • Inference via DepthAI pipeline              │
-│  • Detection state logic                       │
-│  • SKU result dispatch                         │
-│                                                │
-│  Output: SKU labels                            │
-└─────────────────────┬──────────────────────────┘
-                      │  Internal application logic
-                      ▼
-┌────────────────────────────────────────────────┐
-│       Playback Logic (Python / OpenCV)         │
-│                                                │
-│  • SKU → Video mapping (config file)           │
-│  • Responsive transition logic (fade)          │
-│  • Default ↔ SKU specific state                │
-│  • Debounce / object lock (future)             │
-│                                                │
-│  Output: Local video playback                  │
-└────────────────────────────────────────────────┘
+┌───────────────────────────────────────┐
+│           Product Placement           │
+│                                       │
+│   Physical Item on Monitor Surface    │
+│                                       │
+└──────────────────┬────────────────────┘
+                   │
+                   ▼
+┌───────────────────────────────────────┐
+│           OAK-D Pro Camera            │
+│   RGB Capture + On-Device Inference   │
+│   ┌───────────────────────────────┐   │
+│   │  MyriadX VPU                  │   │
+│   │  YOLOv8n (.blob)              │   │
+│   └───────────────────────────────┘   │
+└──────────────────┬────────────────────┘
+                   │  USB
+                   ▼
+┌───────────────────────────────────────┐
+│        Raspberry Pi 5                 │
+│                                       │
+│  Detection loop (daemon thread)       │
+│  · Confidence filtering               │
+│  · SKU → video mapping (YAML)         │
+│  · State change detection             │
+│                                       │
+│  Video player (main thread)           │
+│  · Looping playback                   │
+│  · Cosine fade transitions            │
+│  · Video preloading                   │
+└──────────────────┬────────────────────┘
+                   │  HDMI
+                   ▼
+┌───────────────────────────────────────┐
+│          Display                      │
+│  Default video / SKU-specific video   │
+└───────────────────────────────────────┘
 ```
 
-**Hardware**
+**Technologies**
 
-* Raspberry Pi 5
-* Luxonis OAK-D Pro
-* HDMI Display
+* Hardware: Raspberry Pi 5, OAK-D Pro (MyriadX VPU)
+* Detection: YOLOv8n (Ultralytics), DepthAI, Roboflow
+* Video: OpenCV VideoCapture / VideoWriter
+* Configuration: YAML
+* Language: Python
 
-**Software**
+**GitHub**
 
-* Python
-* DepthAI
-* Ultralytics YOLO
-* OpenCV
-
-**Deployment**
-
-* Fully edge-based
-* Multithreaded processing
-* Config-driven SKU mapping
-* No internet dependency
-
-GitHub Repository:
-[https://github.com/sonostudio/connected-shelf/tree/main](https://github.com/sonostudio/connected-shelf/tree/main)
+https://github.com/sonostudio/connected-shelf
 
 ---
 
-## Reusability & Applications
+### Technology Reusability & Other Use Cases
 
-Although developed for retail, the system functions as a modular vision-triggered interaction framework.
+#### Reusable components
 
-Applicable contexts include:
+* On-device YOLOv8 inference pipeline for OAK-D Pro
+* YAML-driven SKU-to-content mapping system
+* VideoPlayer with smooth fade transitions (reusable for any triggered video display)
+* End-to-end model training and deployment pipeline (capture → annotate → train → convert → deploy)
 
-* Retail media networks
-* Trade show installations
-* Museum storytelling systems
-* Amusement park interactive mechanics
-* Product demo environments
+#### Alternative applications
 
-The studio provides end-to-end implementation — from detection model training to system design and media integration — enabling seamless physical-digital blending.
+##### Trade show and product demo environments
+
+The same system can power interactive product demonstrations at trade shows or in showrooms — where picking up a product item triggers a video explanation, specification overview, or brand story without requiring staff intervention.
+
+##### Museum and gallery interactives
+
+Object recognition can trigger contextual content when a visitor picks up or examines a physical artefact — providing information, audio, or animation tied to specific objects rather than location alone.
+
+##### Inventory and planogram monitoring
+
+With a wider-angle camera and multi-object detection, the same pipeline can monitor shelf stock levels in real time — detecting gaps, misplaced items, or planogram deviations and triggering alerts.
+
+#### Client value
+
+connected-shelf demonstrates how computer vision can close the gap between physical product handling and digital content — making retail displays responsive to customer behaviour without RFID infrastructure, embedded hardware, or manual triggering. The edge-based architecture keeps operating costs low and latency imperceptible, while the configuration-driven design allows non-technical staff to add or update content mappings independently.
