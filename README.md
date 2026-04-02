@@ -31,28 +31,54 @@ Before starting, you'll need:
 
 Flash **Raspberry Pi OS 64-bit (Desktop)** using [Raspberry Pi Imager](https://www.raspberrypi.com/software/). Enable SSH during setup if you want headless access.
 
-### 2. System dependencies
+### 2. Install Python 3.11
+
+Raspberry Pi OS ships with Python 3.13 by default, but this project requires 3.11. Build it from source:
+
+```bash
+sudo apt install -y build-essential libssl-dev zlib1g-dev \
+  libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev \
+  libgdbm-dev libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
+  libffi-dev uuid-dev
+
+wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tgz
+tar -xf Python-3.11.9.tgz
+cd Python-3.11.9
+./configure --enable-optimizations
+make -j4
+sudo make altinstall
+cd ..
+```
+
+Verify the installation:
+
+```bash
+python3.11 --version
+```
+
+### 3. System dependencies
 
 ```bash
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y git python3-pip ffmpeg
 ```
 
-### 3. Install Poetry
+### 4. Install Poetry
 
 ```bash
 curl -sSL https://install.python-poetry.org | python3 -
 ```
 
-### 4. Clone and install
+### 5. Clone and install
 
 ```bash
 git clone https://github.com/sonostudio/connected-shelf.git
 cd connected-shelf
+poetry env use python3.11
 poetry install
 ```
 
-### 5. Set up OAK-D Pro
+### 6. Set up OAK-D Pro
 
 Connect the camera to the **USB 3.0 port (blue)**, then run the following steps.
 
