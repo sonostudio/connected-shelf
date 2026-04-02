@@ -13,6 +13,7 @@ This script lets you:
 import cv2
 import time
 import sys
+import threading
 from pathlib import Path
 
 # Add parent directory to path to import video_player
@@ -33,11 +34,44 @@ TEST_VIDEOS = {
 
 # Display settings
 RESOLUTION = (1920, 1080)  # Change to (1280, 720) for 720p
-FULLSCREEN = False         # Set to True for fullscreen test
+FULLSCREEN = True
 FPS = 30
 
 # Transition settings
 FADE_DURATION = 0.5  # seconds
+
+
+# ============================================================================
+# STDIN INPUT HELPER
+# ============================================================================
+
+class TerminalInput:
+    """
+    Reads input from terminal in a background thread so the video
+    loop can keep running while waiting for commands.
+    """
+    def __init__(self):
+        self.command = None
+        self.lock = threading.Lock()
+        self._thread = threading.Thread(target=self._read_loop, daemon=True)
+        self._thread.start()
+
+    def _read_loop(self):
+        while True:
+            try:
+                line = sys.stdin.readline().strip()
+                if line:
+                    with self.lock:
+                        self.command = line
+            except EOFError:
+                break
+
+    def get_command(self):
+        """Returns the latest command and clears it, or None if no input."""
+        with self.lock:
+            cmd = self.command
+            self.command = None
+            return cmd
 
 
 # ============================================================================
@@ -93,16 +127,18 @@ def test_basic_playback(video_path, duration=10):
     start_time = time.time()
     frame_count = 0
 
-    print("\nPlaying... (press 'q' to stop early)")
+    terminal = TerminalInput()
+    print("\nPlaying... (type 'q' + Enter to stop early)")
 
     while time.time() - start_time < duration:
         if not player.update():
             break
 
         frame_count += 1
+        cv2.waitKey(1)
 
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('q'):
+        cmd = terminal.get_command()
+        if cmd == 'q':
             break
 
     player.stop()
@@ -152,17 +188,23 @@ def test_transitions(video1_path, video2_path, fade_duration=0.5):
     print("  2. Transition to video 2")
     print("  3. Play video 2 for 5 seconds")
     print("  4. Transition back to video 1")
-    print("\nPress 'q' to quit anytime")
+    print("\nType 'q' + Enter to quit anytime")
 
+    terminal = TerminalInput()
     transitions_completed = 0
+
+    def update_or_quit():
+        """Returns True if should quit."""
+        if not player.update():
+            return True
+        cv2.waitKey(1)
+        return terminal.get_command() == 'q'
 
     # Play video 1
     print("\n[Playing video 1...]")
     start = time.time()
     while time.time() - start < 5:
-        if not player.update():
-            break
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if update_or_quit():
             player.stop()
             return False
 
@@ -170,16 +212,13 @@ def test_transitions(video1_path, video2_path, fade_duration=0.5):
     print("[Transitioning to video 2...]")
     player.switch_video('video2', video2_path)
 
-    # Wait for transition to complete
     transition_start = time.time()
     while player.transitioning:
-        if not player.update():
-            break
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if update_or_quit():
             player.stop()
             return False
         if time.time() - transition_start > fade_duration * 2:
-            break  # Timeout
+            break
 
     transitions_completed += 1
     print(f"  ✓ Transition 1 complete ({time.time() - transition_start:.2f}s)")
@@ -188,9 +227,7 @@ def test_transitions(video1_path, video2_path, fade_duration=0.5):
     print("[Playing video 2...]")
     start = time.time()
     while time.time() - start < 5:
-        if not player.update():
-            break
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if update_or_quit():
             player.stop()
             return False
 
@@ -198,16 +235,13 @@ def test_transitions(video1_path, video2_path, fade_duration=0.5):
     print("[Transitioning back to video 1...]")
     player.switch_video('video1', video1_path)
 
-    # Wait for transition to complete
     transition_start = time.time()
     while player.transitioning:
-        if not player.update():
-            break
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if update_or_quit():
             player.stop()
             return False
         if time.time() - transition_start > fade_duration * 2:
-            break  # Timeout
+            break
 
     transitions_completed += 1
     print(f"  ✓ Transition 2 complete ({time.time() - transition_start:.2f}s)")
@@ -215,9 +249,7 @@ def test_transitions(video1_path, video2_path, fade_duration=0.5):
     # Play for a bit more
     start = time.time()
     while time.time() - start < 3:
-        if not player.update():
-            break
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if update_or_quit():
             break
 
     player.stop()
@@ -238,7 +270,7 @@ def interactive_test(available_videos):
     print("\n" + "="*70)
     print("Test 3: Interactive Manual Testing")
     print("="*70)
-    print("\nControls:")
+    print("\nCommands (type + Enter):")
     print("  [1-9] - Switch to video number")
     print("  [d]   - Toggle debug info")
     print("  [+]   - Increase fade duration")
@@ -269,41 +301,43 @@ def interactive_test(available_videos):
     print(f"\nStarted with video [{current_video}]: {first_video}")
     print("\nTry switching between videos to test transitions!")
 
+    terminal = TerminalInput()
+
     while True:
         if not player.update():
             break
 
-        key = cv2.waitKey(1) & 0xFF
+        cv2.waitKey(1)
 
-        if key == ord('q'):
+        cmd = terminal.get_command()
+        if cmd is None:
+            continue
+
+        if cmd == 'q':
             break
 
-        elif key == ord('d'):
+        elif cmd == 'd':
             player.show_debug = not player.show_debug
             print(f"Debug: {'ON' if player.show_debug else 'OFF'}")
 
-        elif key == ord('+') or key == ord('='):
-            current_fade += 0.1
-            current_fade = min(2.0, current_fade)
+        elif cmd == '+':
+            current_fade = min(2.0, current_fade + 0.1)
             player.fade_duration = current_fade
             player.fade_frames = int(player.fps * current_fade)
             print(f"Fade duration: {current_fade:.1f}s")
 
-        elif key == ord('-') or key == ord('_'):
-            current_fade -= 0.1
-            current_fade = max(0.1, current_fade)
+        elif cmd == '-':
+            current_fade = max(0.1, current_fade - 0.1)
             player.fade_duration = current_fade
             player.fade_frames = int(player.fps * current_fade)
             print(f"Fade duration: {current_fade:.1f}s")
 
-        elif chr(key).isdigit():
-            video_key = chr(key)
-            if video_key in available_videos:
-                video_path = available_videos[video_key]
-                if video_key != current_video:
-                    print(f"Switching to [{video_key}]: {video_path}")
-                    player.switch_video(video_key, video_path)
-                    current_video = video_key
+        elif cmd in available_videos:
+            if cmd != current_video:
+                video_path = available_videos[cmd]
+                print(f"Switching to [{cmd}]: {video_path}")
+                player.switch_video(cmd, video_path)
+                current_video = cmd
 
     player.stop()
     print("\n✓ Interactive test ended")
@@ -336,6 +370,8 @@ def test_different_fade_durations(video1_path, video2_path):
             fade_duration=duration
         )
 
+        terminal = TerminalInput()
+
         # Start with video 1
         player.start(video1_path)
 
@@ -344,7 +380,8 @@ def test_different_fade_durations(video1_path, video2_path):
         while time.time() - start < 3:
             if not player.update():
                 break
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            cv2.waitKey(1)
+            if terminal.get_command() == 'q':
                 player.stop()
                 return
 
@@ -356,7 +393,8 @@ def test_different_fade_durations(video1_path, video2_path):
         while player.transitioning:
             if not player.update():
                 break
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            cv2.waitKey(1)
+            if terminal.get_command() == 'q':
                 player.stop()
                 return
 
@@ -365,7 +403,8 @@ def test_different_fade_durations(video1_path, video2_path):
         while time.time() - start < 2:
             if not player.update():
                 break
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            cv2.waitKey(1)
+            if terminal.get_command() == 'q':
                 player.stop()
                 return
 
@@ -435,7 +474,6 @@ def main():
             test_different_fade_durations(video1, video2)
 
         elif choice == '5':
-            # Quick transition test
             print("\nQuick Transition Test")
             print("Rapidly switching between videos...")
             test_transitions(video1, video2, fade_duration=0.3)
