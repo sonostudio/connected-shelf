@@ -53,11 +53,12 @@ class TerminalInput:
     def __init__(self):
         self.command = None
         self.lock = threading.Lock()
+        self._stop = False
         self._thread = threading.Thread(target=self._read_loop, daemon=True)
         self._thread.start()
 
     def _read_loop(self):
-        while True:
+        while not self._stop:
             try:
                 line = sys.stdin.readline().strip()
                 if line:
@@ -72,6 +73,10 @@ class TerminalInput:
             cmd = self.command
             self.command = None
             return cmd
+
+    def stop(self):
+        """Stop the background thread."""
+        self._stop = True
 
 
 # ============================================================================
@@ -141,6 +146,7 @@ def test_basic_playback(video_path, duration=10):
         if cmd == 'q':
             break
 
+    terminal.stop()
     player.stop()
 
     elapsed = time.time() - start_time
@@ -252,6 +258,7 @@ def test_transitions(video1_path, video2_path, fade_duration=0.5):
         if update_or_quit():
             break
 
+    terminal.stop()
     player.stop()
 
     print(f"\n✓ Test complete!")
@@ -339,6 +346,7 @@ def interactive_test(available_videos):
                 player.switch_video(cmd, video_path)
                 current_video = cmd
 
+    terminal.stop()
     player.stop()
     print("\n✓ Interactive test ended")
 
@@ -382,6 +390,7 @@ def test_different_fade_durations(video1_path, video2_path):
                 break
             cv2.waitKey(1)
             if terminal.get_command() == 'q':
+                terminal.stop()
                 player.stop()
                 return
 
@@ -395,6 +404,7 @@ def test_different_fade_durations(video1_path, video2_path):
                 break
             cv2.waitKey(1)
             if terminal.get_command() == 'q':
+                terminal.stop()
                 player.stop()
                 return
 
@@ -405,9 +415,11 @@ def test_different_fade_durations(video1_path, video2_path):
                 break
             cv2.waitKey(1)
             if terminal.get_command() == 'q':
+                terminal.stop()
                 player.stop()
                 return
 
+        terminal.stop()
         player.stop()
         print(f"  ✓ Done")
 
