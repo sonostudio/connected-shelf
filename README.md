@@ -33,21 +33,43 @@ Flash **Raspberry Pi OS 64-bit (Desktop)** using [Raspberry Pi Imager](https://w
 
 ### 2. Install Python 3.11
 
-Raspberry Pi OS ships with Python 3.13 by default, but this project requires 3.11. Build it from source:
+Raspberry Pi OS ships with Python 3.13 by default, but this project requires 3.11. Use pyenv to manage the installation.
+
+First, install the build dependencies pyenv needs to compile Python:
 
 ```bash
 sudo apt install -y build-essential libssl-dev zlib1g-dev \
   libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev \
   libgdbm-dev libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
   libffi-dev uuid-dev
+```
 
-wget https://www.python.org/ftp/python/3.11.9/Python-3.11.9.tgz
-tar -xf Python-3.11.9.tgz
-cd Python-3.11.9
-./configure --enable-optimizations
-make -j4
-sudo make altinstall
-cd ..
+Install pyenv:
+
+```bash
+curl https://pyenv.run | bash
+```
+
+Add pyenv to your shell by appending these lines to `~/.bashrc`:
+
+```bash
+export PYENV_ROOT="$HOME/.pyenv"
+export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init -)"
+```
+
+Apply the changes:
+
+```bash
+source ~/.bashrc
+```
+
+Install Python 3.11 and set it for this project:
+
+```bash
+pyenv install 3.11.9
+cd ~/Desktop/connected-shelf
+pyenv local 3.11.9
 ```
 
 Verify the installation:
