@@ -15,7 +15,7 @@ class CaptureConfig:
     label_id: str = "0"
 
     # Camera settings
-    preview_size: tuple[int, int] = (320, 320)
+    preview_size: tuple[int, int] = (640, 640)  # Match YOLO training size
     fps: int = 30
 
     # Video codec
@@ -98,7 +98,8 @@ def create_pipeline(config: CaptureConfig) -> dai.Pipeline:
     cam.setInterleaved(False)
     cam.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
     cam.setFps(config.fps)
-    cam.setIspScale(1, 3)
+    # Scale 1080p -> 720p (2/3), giving enough resolution for a 640x640 preview crop
+    cam.setIspScale(2, 3)
 
     # Enhanced vision settings
     cam.initialControl.setContrast(config.contrast)
@@ -122,7 +123,7 @@ def add_overlay(frame, recording: bool, frame_count: int = 0, duration: float = 
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
 
         stats_text = f"Frames: {frame_count} | Time: {duration:.1f}s"
-        cv2.putText(display_frame, stats_text, (10, 310),
+        cv2.putText(display_frame, stats_text, (10, 630),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1)
 
     return display_frame
