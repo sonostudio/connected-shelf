@@ -3,6 +3,7 @@ detection:
   model_path: "model/model.blob"
   labels_path: "model/labels.txt"
   camera_fps: 30
+  preview: false
 
 display:
   resolution: [1920, 1080] # [width, height]
@@ -25,9 +26,9 @@ video:
   preload: true # Preload all videos at startup (faster switching)
 
 osc:
-  mac_ip: "192.168.1.100"   # IP address of the Mac running play_mac.py
-  port: 9000                 # OSC port (must match on both sides)
-  send_interval: 0.05        # Seconds between OSC sends (Pi side, ~20 msgs/sec)
+  mac_ip: "192.168.1.100"
+  port: 9000
+  send_interval: 0.05
   no_detection_timeout: 2.0  # Mac: seconds without a message before returning to default
 
 logging:
