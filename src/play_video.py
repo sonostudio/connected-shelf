@@ -122,6 +122,8 @@ def main():
     content   = cfg["content"]
 
     no_detection_timeout = osc_cfg["no_detection_timeout"]
+    # ADDED: confidence gate — detections below this are ignored on the Mac side.
+    conf_threshold       = cfg["detection"]["confidence_threshold"]
     sku_map              = content["skus"]          # {label: video_path}
     default_video        = content["default"]
 
@@ -173,6 +175,16 @@ def main():
                 (time.time() - last_msg) > no_detection_timeout
             )
             if timed_out:
+                sku = None
+
+            # ADDED: confidence gate — ignore detections below threshold.
+            # The Pi already filtered with pre_filter_threshold (noise floor);
+            # this is the real threshold that controls video switching.
+            if sku is not None and confidence < conf_threshold:
+                logger.debug(
+                    f"  {sku} {confidence:.2%} below confidence_threshold "
+                    f"({conf_threshold:.2%}) — ignoring"
+                )
                 sku = None
 
             # ---------- react to SKU changes --------------------------------

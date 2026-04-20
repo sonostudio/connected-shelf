@@ -1,5 +1,6 @@
 detection:
-  confidence_threshold: 0.8
+  confidence_threshold: 0.8   # Mac side: gates video switching
+  pre_filter_threshold: 0.1   # Pi side: strips obvious noise before OSC send
   model_path: "model/model.blob"
   labels_path: "model/labels.txt"
   camera_fps: 30
@@ -26,7 +27,7 @@ video:
   preload: true # Preload all videos at startup (faster switching)
 
 osc:
-  mac_ip: "192.168.1.100"
+  mac_ip: "192.168.1.4"
   port: 9000
   send_interval: 0.05
   no_detection_timeout: 2.0  # Mac: seconds without a message before returning to default

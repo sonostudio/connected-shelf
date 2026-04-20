@@ -262,11 +262,12 @@ def main():
     det_cfg  = cfg["detection"]
     osc_cfg  = cfg["osc"]
 
-    model_path    = det_cfg["model_path"]
-    labels_path   = det_cfg["labels_path"]
-    conf_thresh   = det_cfg["confidence_threshold"]
-    camera_fps    = det_cfg["camera_fps"]
-    send_interval = osc_cfg["send_interval"]
+    model_path        = det_cfg["model_path"]
+    labels_path       = det_cfg["labels_path"]
+    conf_thresh       = det_cfg["confidence_threshold"]
+    pre_filter_thresh = det_cfg.get("pre_filter_threshold", conf_thresh)
+    camera_fps        = det_cfg["camera_fps"]
+    send_interval     = osc_cfg["send_interval"]
 
     # Preview is enabled via config; can be toggled off at runtime with [p].
     # Toggling it ON at runtime only works if it was already enabled at startup
@@ -313,20 +314,24 @@ def main():
                 packet = q_nn.get()
                 raw    = packet.getFirstLayerFp16()
 
-                detections = decode_yolov8(raw, num_classes, conf_thresh)
+                # Decode with low pre_filter_thresh to catch all candidates
+                detections = decode_yolov8(raw, num_classes, pre_filter_thresh)
                 detections = nms(detections)
                 last_dets  = detections
 
                 # ---- OSC send (rate-limited) --------------------------------
+                # Only send detections that clear the higher conf_thresh
                 now = time.time()
                 if now - last_send >= send_interval:
                     last_send = now
 
-                    if not detections:
+                    strong = [d for d in detections if d["confidence"] >= conf_thresh]
+
+                    if not strong:
                         osc.send_message("/no_detection", [])
                         logger.debug("→ /no_detection")
                     else:
-                        best = max(detections, key=lambda d: d["confidence"])
+                        best = max(strong, key=lambda d: d["confidence"])
                         label_name = (
                             labels[best["label"]]
                             if best["label"] < len(labels)
