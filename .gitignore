@@ -216,6 +216,7 @@ connected-shelf-object-detection-*/
 *.onnx
 *.blob
 runs/
+model/
 
 # Videos
 *.mp4
