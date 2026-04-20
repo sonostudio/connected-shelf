@@ -1,6 +1,6 @@
 detection:
   confidence_threshold: 0.8
-  model_path: "model/model_shoes.blob"
+  model_path: "model/model.blob"
   labels_path: "model/labels.txt"
   camera_fps: 30
 
@@ -14,14 +14,21 @@ transitions:
   return_to_default_delay: 0.0
 
 content:
-  default: "videos/default.mp4"
+  default: "videos/idle-4K.mp4"
   skus:
-    nike_black: "videos/nike_black.mov"
-    nb_gray: "videos/nb_gray.mp4"
+    nb: "videos/abstract-01-4K.mp4"
+    nike: "videos/cosmos-01-4K.mp4"
+    puma: "videos/cosmos-01-4K.mp4"
 
 video:
   loop: true
   preload: true # Preload all videos at startup (faster switching)
+
+osc:
+  mac_ip: "192.168.1.100"   # IP address of the Mac running play_mac.py
+  port: 9000                 # OSC port (must match on both sides)
+  send_interval: 0.05        # Seconds between OSC sends (Pi side, ~20 msgs/sec)
+  no_detection_timeout: 2.0  # Mac: seconds without a message before returning to default
 
 logging:
   level: "INFO"

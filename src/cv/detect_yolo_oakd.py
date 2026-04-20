@@ -10,7 +10,7 @@ import argparse
 # ============================================================================
 
 # Model files
-MODEL_BLOB_PATH = "model/model_shoes.blob"
+MODEL_BLOB_PATH = "model/model.blob"
 LABELS_PATH = "model/labels.txt"
 
 # Detection parameters

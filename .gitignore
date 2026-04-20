@@ -215,10 +215,14 @@ connected-shelf-object-detection-*/
 *.pt
 *.onnx
 *.blob
+runs/
 
 # Videos
 *.mp4
 *.mov
+
+# TouchDesigner
+touchdesigner/
 
 # Mac OS
 .DS_Store

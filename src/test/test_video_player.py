@@ -27,9 +27,9 @@ from video_player import VideoPlayer
 
 # Video files to test (paths relative to project root)
 TEST_VIDEOS = {
-    '1': 'videos/default.mp4',
-    '2': 'videos/loop1.mov',
-    '3': 'videos/loop2.mp4',
+    '1': 'videos/idle-4K.mp4',
+    '2': 'videos/abstract-01-4K.mp4',
+    '3': 'videos/cosmos-01-4K.mp4',
 }
 
 # Display settings
