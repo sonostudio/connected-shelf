@@ -1825,6 +1825,18 @@ files = [
 cli = ["click (>=5.0)"]
 
 [[package]]
+name = "python-osc"
+version = "1.10.2"
+description = "Open Sound Control server and client implementations in pure Python"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "python_osc-1.10.2-py3-none-any.whl", hash = "sha256:018b28e1cc06427c2c3d695f4e8d87d0caecfe604ff889acc45235cfd94183a2"},
+    {file = "python_osc-1.10.2.tar.gz", hash = "sha256:732548f4f467dda9f890a6b0b3bfb085ab117f4bd38a45a58d2ca0f3bd6a546d"},
+]
+
+[[package]]
 name = "pytokens"
 version = "0.4.0"
 description = "A Fast, spec compliant Python 3.14+ tokenizer that runs on older Pythons."
@@ -2384,4 +2396,4 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "~3.11"
-content-hash = "dcf1b939167773a215944afdae95c070de539234ad51082105685db1ae3f15ad"
+content-hash = "750be6e2993836a6cae87b8849cf12a4e98694c2d6ed9ef6f469f3f67bfb529c"
