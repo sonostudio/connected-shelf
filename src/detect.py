@@ -145,6 +145,7 @@ def build_pipeline(model_path, camera_fps, include_preview):
     cam = pipeline.create(dai.node.ColorCamera)
     cam.setPreviewSize(640, 640)
     cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+    cam.setIspScale(2, 3)
     cam.setInterleaved(False)
     cam.setColorOrder(dai.ColorCameraProperties.ColorOrder.BGR)
     cam.setFps(camera_fps)
