@@ -1,6 +1,6 @@
 detection:
-  confidence_threshold: 0.8   # Mac side: gates video switching
-  pre_filter_threshold: 0.1   # Pi side: strips obvious noise before OSC send
+  confidence_threshold: 0.5   # Mac side: gates video switching
+  pre_filter_threshold: 0.5   # Pi side: strips obvious noise before OSC send
   model_path: "model/model.blob"
   labels_path: "model/labels.txt"
   camera_fps: 30

@@ -1,37 +1,54 @@
-import blobconverter
+"""
+convert_blob.py — run on Mac
+Converts best.pt -> ONNX -> blob with --reverse_input_channels explicitly set.
+
+python src/cv/convert_blob.py
+"""
 import shutil
-import os
 from pathlib import Path
 from ultralytics import YOLO
 
-path_weights = Path("../runs/detect/runs/train/oakd_detection/weights/")
-model = YOLO(f"{path_weights}/best.pt")
+PT_PATH = "runs/detect/runs/train/oakd_detection/weights/best.pt"
 
-# Export to ONNX with explicit settings
-onnx_path = model.export(
-    format='onnx',
-    imgsz=640,
-    simplify=True,
-    opset=12,
-    dynamic=False
-)
+# ---- Load and confirm model ------------------------------------------------
+model = YOLO(PT_PATH)
+imgsz = model.overrides.get("imgsz", 640)
+print(f"Model: {PT_PATH}")
+print(f"  imgsz={imgsz}  nc={model.model.nc}  names={list(model.names.values())}")
 
-print(f"ONNX model saved: {onnx_path}")
+# ---- Export ONNX -----------------------------------------------------------
+print(f"\nExporting ONNX at imgsz={imgsz}...")
+onnx_path = model.export(format="onnx", imgsz=imgsz, opset=12, simplify=True)
+print(f"  -> {onnx_path}")
 
-# Convert ONNX to blob
-print("Converting to blob format...")
+# ---- Convert to blob -------------------------------------------------------
+print("\nConverting to blob...")
+print("  Using --reverse_input_channels to fix BGR->RGB mismatch\n")
+
+import blobconverter
+
 blob_path = blobconverter.from_onnx(
-    model=f"{path_weights}/best.onnx",
+    model=str(onnx_path),
     data_type="FP16",
     shaves=6,
     use_cache=False,
     optimizer_params=[
-        "--data_type=FP16",
-        "--reverse_input_channels"
-    ]
+        "--reverse_input_channels",
+        "--mean_values=[123.675,116.28,103.53]",
+        "--scale_values=[58.395,57.12,57.375]",
+    ],
 )
-print(f"Blob created: {blob_path}")
+print(f"  -> {blob_path}")
 
-os.makedirs("../model", exist_ok=True)
-shutil.copy(blob_path, "../model/model.blob")
-print("✓ Model ready at: model/model.blob")
+# ---- Save ------------------------------------------------------------------
+Path("model").mkdir(exist_ok=True)
+shutil.copy(blob_path, "model/model.blob")
+
+with open("model/labels.txt", "w") as f:
+    for name in model.names.values():
+        f.write(f"{name}\n")
+
+print(f"\n✓ model/model.blob updated")
+print(f"✓ model/labels.txt updated")
+print(f"\nCopy both files to the Pi, then run:")
+print(f"  poetry run python src/test/test_model.py")
