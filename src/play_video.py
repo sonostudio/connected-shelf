@@ -88,7 +88,8 @@ def make_handlers(state: DetectionState):
 
     def on_no_detection(address):
         logger.debug("← /no_detection")
-        state.set_no_detection()
+        # Intentionally ignored — we rely on no_detection_timeout instead.
+        # Reacting immediately causes flickering when confidence briefly dips.
 
     return on_detection, on_no_detection
 

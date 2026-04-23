@@ -27,7 +27,8 @@ blob_path = blobconverter.from_onnx(
     use_cache=False,
     optimizer_params=[
         "--data_type=FP16",
-        "--reverse_input_channels"
+        "--reverse_input_channels",
+        "--scale_values=[255,255,255]"
     ]
 )
 print(f"Blob created: {blob_path}")
