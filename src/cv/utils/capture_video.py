@@ -1,6 +1,7 @@
 import cv2
 import depthai as dai
 import os
+import subprocess
 import warnings
 from datetime import datetime
 from dataclasses import dataclass
@@ -18,8 +19,9 @@ class CaptureConfig:
     preview_size: tuple[int, int] = (640, 640)  # Match YOLO training size
     fps: int = 30
 
-    # Video codec
-    fourcc: str = 'avc1'
+    # Video codec (mp4v = software MPEG-4, reliable on Pi 5)
+    # Output is post-processed to H.264 via ffmpeg for browser compatibility
+    fourcc: str = 'mp4v'
 
     # Enhanced vision settings
     contrast: int = 5
@@ -71,10 +73,43 @@ class VideoRecorder:
             duration = time.time() - self.start_time if self.start_time else 0
             print(f"Recording saved: {self.current_filename}")
             print(f"Frames: {self.frame_count}, Duration: {duration:.1f}s")
+            self._convert_to_h264()
 
         self.recording = False
         self.frame_count = 0
         self.start_time = None
+
+    def _convert_to_h264(self) -> None:
+        if self.current_filename is None:
+            return
+
+        src = self.config.dataset_dir / self.current_filename
+        tmp = src.with_suffix(".h264.mp4")
+
+        print(f"Converting to H.264 (browser-compatible)...")
+        result = subprocess.run(
+            [
+                "ffmpeg", "-y",
+                "-i", str(src),
+                "-vcodec", "libx264",
+                "-crf", "23",
+                "-preset", "fast",
+                "-pix_fmt", "yuv420p",
+                str(tmp),
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        if result.returncode != 0:
+            print(f"ERROR: ffmpeg conversion failed:")
+            print(result.stderr)
+            return
+
+        # Replace original mp4v file with H.264 version
+        src.unlink()
+        tmp.rename(src)
+        print(f"Conversion complete: {self.current_filename}")
 
     def get_stats(self) -> tuple[int, float]:
         if not self.recording or self.start_time is None:
