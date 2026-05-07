@@ -31,6 +31,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# ROI crop — defines the monitor region within the 640x640 camera frame.
+# Must match the ffmpeg crop used when preparing training videos:
+#   ffmpeg ... -vf "crop=570:360:30:60" ...
+# Format: (x, y, width, height) in pixels
+# ---------------------------------------------------------------------------
+ROI = (30, 60, 570, 360)
+
+# Normalised ROI bounds (0-1) for post-inference detection filtering.
+# Detections whose centre falls outside this region are discarded.
+_ROI_X1 = ROI[0] / 640
+_ROI_Y1 = ROI[1] / 640
+_ROI_X2 = (ROI[0] + ROI[2]) / 640
+_ROI_Y2 = (ROI[1] + ROI[3]) / 640
+
 
 def load_config(path="config/config.yaml"):
     with open(path, "r") as f:
@@ -45,6 +60,23 @@ def load_labels(path):
     labels = [line.strip() for line in p.read_text().splitlines() if line.strip()]
     logger.info(f"Loaded {len(labels)} labels: {', '.join(labels)}")
     return labels
+
+
+def apply_roi(frame):
+    """Crop frame to the monitor region defined by ROI."""
+    x, y, w, h = ROI
+    return frame[y:y+h, x:x+w]
+
+
+def filter_by_roi(detections):
+    """Discard detections whose centre falls outside the monitor ROI."""
+    filtered = []
+    for d in detections:
+        cx = (d["x1"] + d["x2"]) / 2
+        cy = (d["y1"] + d["y2"]) / 2
+        if _ROI_X1 <= cx <= _ROI_X2 and _ROI_Y1 <= cy <= _ROI_Y2:
+            filtered.append(d)
+    return filtered
 
 
 def sigmoid(x):
@@ -206,7 +238,7 @@ def main():
 
         if show_preview:
             cv2.namedWindow("Detection Preview", cv2.WINDOW_NORMAL)
-            cv2.resizeWindow("Detection Preview", 640, 640)
+            cv2.resizeWindow("Detection Preview", 570, 360)  # match ROI dimensions
             logger.info("Preview window open. [p] toggle  Ctrl-C to quit")
 
         last_send   = 0.0
@@ -223,6 +255,7 @@ def main():
 
                 detections = decode_yolov8(raw, num_classes, pre_filter_thresh)
                 detections = nms(detections)
+                detections = filter_by_roi(detections)
                 last_dets  = detections
 
                 # ---- OSC (rate-limited, gated by conf_thresh) --------------
@@ -255,6 +288,7 @@ def main():
                     in_video = q_video.tryGet()
                     if in_video is not None:
                         frame = in_video.getCvFrame()
+                        frame = apply_roi(frame)  # crop to monitor region
                         frame = draw_detections(frame, last_dets, labels)
                         frame = draw_overlay(frame, fps, len(last_dets),
                                              osc_cfg["mac_ip"], osc_cfg["port"])
@@ -271,7 +305,7 @@ def main():
                             show_preview = False
                         else:
                             cv2.namedWindow("Detection Preview", cv2.WINDOW_NORMAL)
-                            cv2.resizeWindow("Detection Preview", 640, 640)
+                            cv2.resizeWindow("Detection Preview", 570, 360)  # match ROI dimensions
                             logger.info("Preview ON")
                     else:
                         cv2.destroyWindow("Detection Preview")
