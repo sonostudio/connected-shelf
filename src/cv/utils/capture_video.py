@@ -193,20 +193,19 @@ def main():
 
             with VideoRecorder(config) as recorder:
                 while True:
-                    in_rgb = q_rgb.tryGet()
+                    in_rgb = q_rgb.get()  # blocking: waits for frame, ensures write rate matches camera fps
 
-                    if in_rgb is not None:
-                        frame = in_rgb.getCvFrame()
-                        recorder.write_frame(frame)
+                    frame = in_rgb.getCvFrame()
+                    recorder.write_frame(frame)
 
-                        frame_count, duration = recorder.get_stats()
-                        display_frame = add_overlay(
-                            frame,
-                            recorder.recording,
-                            frame_count,
-                            duration
-                        )
-                        cv2.imshow("Data Capture - OAK-D", display_frame)
+                    frame_count, duration = recorder.get_stats()
+                    display_frame = add_overlay(
+                        frame,
+                        recorder.recording,
+                        frame_count,
+                        duration
+                    )
+                    cv2.imshow("Data Capture - OAK-D", display_frame)
 
                     key = cv2.waitKey(1)
                     if key == ord('q'):
