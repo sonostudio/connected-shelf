@@ -1,4 +1,5 @@
 import os
+import shutil
 
 print("=" * 60)
 print("Local Model Training for OAK-D Pro")
@@ -6,7 +7,7 @@ print("=" * 60)
 print()
 print("This script will help you:")
 print("1. Download your dataset from Roboflow (free)")
-print("2. Train a YOLO model locally")
+print("2. Fine-tune a YOLO model locally")
 print("3. Convert to OAK-D Pro format")
 print()
 
@@ -16,6 +17,9 @@ WORKSPACE = ""
 PROJECT = ""
 VERSION = 2
 DATASET_PATH = ""  # Set this to skip Roboflow download, e.g. "dataset/your-project-2"
+
+# Fine-tuning configuration
+FINETUNE_WEIGHTS = "src/cv/runs/detect/runs/train/oakd_detection2/weights/best.pt"
 
 
 def download_dataset():
@@ -47,7 +51,7 @@ def download_dataset():
         print(f"\n✗ Error: {e}")
         print("\nManual alternative:")
         print("1. Go to app.roboflow.com")
-        print("2. Your project → Version 4")
+        print(f"2. Your project → Version {VERSION}")
         print("3. Click 'Download Dataset' (this IS free)")
         print("4. Choose format: 'YOLOv8'")
         print("5. Download and extract to 'dataset/' folder")
@@ -80,9 +84,9 @@ def install_ultralytics():
             return False
 
 
-def train_model(dataset_path):
+def train_model(dataset_path, finetune_weights=None):
     """
-    Train YOLOv8 model on your dataset
+    Fine-tune or train YOLOv8 model on your dataset
     """
     print("\n" + "=" * 60)
     print("Step 3: Train Model")
@@ -95,7 +99,6 @@ def train_model(dataset_path):
     if dataset_path:
         data_yaml = os.path.join(dataset_path, "data.yaml")
     else:
-        # Search for it
         for root, dirs, files in os.walk("."):
             if "data.yaml" in files:
                 data_yaml = os.path.join(root, "data.yaml")
@@ -108,52 +111,70 @@ def train_model(dataset_path):
 
     print(f"\nUsing dataset: {data_yaml}")
 
-    # Training configuration
-    print("\nSelect model size:")
-    print("1. YOLOv8n (nano - fastest, 6MB)")
-    print("2. YOLOv8s (small - balanced, 22MB)")
-    print("3. YOLOv8m (medium - accurate, 52MB)")
+    # Determine whether fine-tuning or training from scratch
+    if finetune_weights and os.path.exists(finetune_weights):
+        print(f"\n✓ Fine-tuning from: {finetune_weights}")
+        print("  Model size is inherited from the existing weights (yolov8s)")
+        model = YOLO(finetune_weights)
+        run_name = "oakd_finetune"
+        epochs = 50
+        lr0 = 0.001   # 10x lower than default to preserve learned features
+        lrf = 0.01
+        warmup_epochs = 3
+    else:
+        print("\n⚠️  Fine-tune weights not found, falling back to training from scratch")
+        print("\nSelect model size:")
+        print("1. YOLOv8n (nano - fastest, 6MB)")
+        print("2. YOLOv8s (small - balanced, 22MB)")
+        print("3. YOLOv8m (medium - accurate, 52MB)")
 
-    choice = input("\nEnter choice (1-3) [default: 1]: ").strip() or "1"
+        choice = input("\nEnter choice (1-3) [default: 2]: ").strip() or "2"
+        model_sizes = {
+            "1": "yolov8n.pt",
+            "2": "yolov8s.pt",
+            "3": "yolov8m.pt"
+        }
+        model_file = model_sizes.get(choice, "yolov8s.pt")
+        print(f"\nUsing model: {model_file}")
+        model = YOLO(model_file)
+        run_name = "oakd_detection"
+        epochs = 100
+        lr0 = 0.01    # default learning rate for training from scratch
+        lrf = 0.01
+        warmup_epochs = 3
 
-    model_sizes = {
-        "1": "yolov8n.pt",
-        "2": "yolov8s.pt",
-        "3": "yolov8m.pt"
-    }
-
-    model_file = model_sizes.get(choice, "yolov8n.pt")
-
-    print(f"\nUsing model: {model_file}")
-    print("\nTraining configuration:")
-    print("  - Epochs: 100 (you can change this)")
-    print("  - Image size: 640")
-    print("  - Batch size: 16 (auto-adjusted based on GPU)")
-    print("  - Device: auto (GPU if available, else CPU)")
+    print(f"\nTraining configuration:")
+    print(f"  - Epochs:         {epochs}")
+    print(f"  - Image size:     640")
+    print(f"  - Batch size:     16 (auto-adjusted based on GPU)")
+    print(f"  - Learning rate:  {lr0} (initial), {lrf} (final)")
+    print(f"  - Warmup epochs:  {warmup_epochs}")
+    print(f"  - Device:         auto (GPU if available, else CPU)")
 
     input("\nPress Enter to start training...")
 
-    # Load model
-    model = YOLO(model_file)
-
-    # Train
     print("\n🚀 Starting training...")
-    print("This may take 30min - 2 hours depending on your hardware")
+    if finetune_weights and os.path.exists(finetune_weights):
+        print("Fine-tuning typically converges faster than training from scratch.")
+    else:
+        print("This may take 30min - 2 hours depending on your hardware")
     print("You can stop anytime with Ctrl+C and use the best checkpoint")
 
     results = model.train(
         data=data_yaml,
-        epochs=100,
+        epochs=epochs,
         imgsz=640,
         batch=16,
-        name="oakd_detection",
+        lr0=lr0,
+        lrf=lrf,
+        warmup_epochs=warmup_epochs,
+        name=run_name,
         project="runs/train"
     )
 
     print("\n✓ Training complete!")
 
-    # Get best model path
-    best_model = "runs/detect/runs/train/oakd_detection/weights/best.pt"
+    best_model = f"runs/detect/runs/train/{run_name}/weights/best.pt"
 
     if os.path.exists(best_model):
         print(f"Best model: {best_model}")
@@ -180,8 +201,6 @@ def export_to_onnx(model_path):
     print(f"\nExporting: {model_path}")
 
     model = YOLO(model_path)
-
-    # Export to ONNX
     onnx_path = model.export(format="onnx", imgsz=640)
 
     print(f"\n✓ ONNX export complete!")
@@ -202,7 +221,6 @@ def convert_to_blob(onnx_path):
         print("✗ ONNX file not found!")
         return None
 
-    # Install blobconverter
     try:
         import blobconverter
     except ImportError:
@@ -224,9 +242,7 @@ def convert_to_blob(onnx_path):
         print(f"\n✓ Blob conversion complete!")
         print(f"File: {blob_path}")
 
-        # Copy to model directory
         os.makedirs("model", exist_ok=True)
-        import shutil
         final_path = "model/model.blob"
         shutil.copy(blob_path, final_path)
         print(f"Copied to: {final_path}")
@@ -275,7 +291,6 @@ def create_labels_file(dataset_path):
         print("✗ No class names found in data.yaml")
         return False
 
-    # Create labels file
     os.makedirs("model", exist_ok=True)
     labels_path = "model/labels.txt"
 
@@ -298,7 +313,17 @@ def main():
     print("  - API_KEY (or DATASET_PATH for manual download)")
     print("  - WORKSPACE")
     print("  - PROJECT")
+    print(f"  - FINETUNE_WEIGHTS (currently: {FINETUNE_WEIGHTS})")
     print()
+
+    # Check fine-tune weights
+    if FINETUNE_WEIGHTS and os.path.exists(FINETUNE_WEIGHTS):
+        print(f"✓ Fine-tune weights found: {FINETUNE_WEIGHTS}")
+        finetune_weights = FINETUNE_WEIGHTS
+    else:
+        print(f"⚠️  Fine-tune weights not found at: {FINETUNE_WEIGHTS}")
+        print("   Will fall back to training from scratch if not resolved.")
+        finetune_weights = None
 
     # Step 1: Resolve dataset path
     if DATASET_PATH:
@@ -335,7 +360,7 @@ def main():
         print("  python train.py")
         return
 
-    model_path = train_model(dataset_path)
+    model_path = train_model(dataset_path, finetune_weights)
 
     if not model_path:
         return
@@ -357,9 +382,7 @@ def main():
         print(f"  - {blob_path}")
         print(f"  - model/labels.txt")
         print(f"\nYou can now run:")
-        print(f"  python detect_oakd_local.py")
-        print(f"\nMake sure to set:")
-        print(f"  USE_PRETRAINED_YOLO = False")
+        print(f"  python detect.py")
 
 
 if __name__ == "__main__":
